@@ -186,8 +186,7 @@ async function sendMessage() {
     const data = await response.json();
     typingIndicator.remove();
 
-    const modelBadge = data.modelUsed || selectedModel;
-    addMessage(data.reply || "抱歉，我無法處理這個請求。", "assistant", modelBadge);
+    addMessage(data.reply || "抱歉，我無法處理這個請求。", "assistant");
 
   } catch (error) {
     console.error("AI Assistant Error:", error);
