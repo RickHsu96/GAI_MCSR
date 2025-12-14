@@ -76,9 +76,9 @@ function createAIAssistantHTML() {
         <label for="ai-model-select">模型：</label>
         <select id="ai-model-select" class="ai-model-select">
           <option value="gemini-2.0-flash">Gemini 2.0 Flash (快速)</option>
-          <option value="gemini-1.5-pro">Gemini 1.5 Pro (高品質)</option>
-          <option value="gemini-1.5-flash">Gemini 1.5 Flash (平衡)</option>
-          <option value="gemini-1.0-pro">Gemini 1.0 Pro (穩定)</option>
+          <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash (平衡)</option>
+          <option value="gemini-1.5-pro-latest">Gemini 1.5 Pro (高品質)</option>
+          <option value="gemini-pro">Gemini Pro (穩定)</option>
         </select>
       </div>
       

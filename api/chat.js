@@ -9,21 +9,21 @@ const MODELS = {
     "gemini-2.0-flash": {
         url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
         name: "Gemini 2.0 Flash",
-        description: "最新快速模型"
+        description: "快速模型"
     },
-    "gemini-1.5-pro": {
-        url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent",
-        name: "Gemini 1.5 Pro",
-        description: "高品質模型"
-    },
-    "gemini-1.5-flash": {
-        url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+    "gemini-1.5-flash-latest": {
+        url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent",
         name: "Gemini 1.5 Flash",
         description: "平衡模型"
     },
-    "gemini-1.0-pro": {
-        url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent",
-        name: "Gemini 1.0 Pro",
+    "gemini-1.5-pro-latest": {
+        url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent",
+        name: "Gemini 1.5 Pro",
+        description: "高品質模型"
+    },
+    "gemini-pro": {
+        url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+        name: "Gemini Pro",
         description: "穩定模型"
     }
 };
