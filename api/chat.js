@@ -4,21 +4,9 @@
 
 const MCSR_API_BASE = "https://mcsrranked.com/api";
 
-// Available models
-const MODELS = {
-    "gemini-2.5-flash": {
-        url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-        name: "Gemini 2.5 Flash",
-        description: "最新快速模型"
-    },
-    "gemini-2.0-flash": {
-        url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
-        name: "Gemini 2.0 Flash",
-        description: "穩定快速模型"
-    }
-};
-
-const DEFAULT_MODEL = "gemini-2.5-flash";
+// Fixed model: Gemini 2.5 Flash
+const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // System prompt
 const SYSTEM_PROMPT = `你是 MCSR Ranked 資料分析專家。你的任務是根據提供的 Minecraft 速通排名賽資料，為使用者提供專業的分析與建議。
@@ -146,11 +134,9 @@ function formatPlayerDataForAI(profile, matches) {
     return dataStr;
 }
 
-async function callGemini(userMessage, context, modelId) {
+async function callGemini(userMessage, context) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
-
-    const model = MODELS[modelId] || MODELS[DEFAULT_MODEL];
 
     let fullPrompt = SYSTEM_PROMPT + "\n\n";
     if (context) {
@@ -158,7 +144,7 @@ async function callGemini(userMessage, context, modelId) {
     }
     fullPrompt += `使用者問題：${userMessage}`;
 
-    const response = await fetch(`${model.url}?key=${apiKey}`, {
+    const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -177,34 +163,22 @@ async function callGemini(userMessage, context, modelId) {
     const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!reply) throw new Error("No response from Gemini");
 
-    return { reply, modelUsed: model.name };
+    return reply;
 }
 
 export default async function handler(req, res) {
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
     if (req.method === "OPTIONS") return res.status(200).end();
-
-    // GET request returns available models
-    if (req.method === "GET") {
-        return res.status(200).json({
-            models: Object.entries(MODELS).map(([id, info]) => ({
-                id,
-                name: info.name,
-                description: info.description
-            })),
-            defaultModel: DEFAULT_MODEL
-        });
-    }
 
     if (req.method !== "POST") {
         return res.status(405).json({ error: "Method not allowed" });
     }
 
     try {
-        const { message, model: modelId } = req.body;
+        const { message } = req.body;
 
         if (!message || typeof message !== "string") {
             return res.status(400).json({ error: "Message is required" });
@@ -228,13 +202,12 @@ export default async function handler(req, res) {
             }
         }
 
-        const { reply, modelUsed } = await callGemini(message, context, modelId || DEFAULT_MODEL);
+        const reply = await callGemini(message, context);
 
         return res.status(200).json({
             reply,
             playerFound: !!playerData,
             playerName: playerName || null,
-            modelUsed,
         });
 
     } catch (error) {

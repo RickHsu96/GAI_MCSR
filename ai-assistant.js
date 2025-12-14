@@ -1,6 +1,6 @@
 // ============================================================================
 // AI Assistant Module - MCSR Ranked 資料分析助手
-// 支援多模型選擇
+// 使用 Gemini 2.5 Flash
 // ============================================================================
 
 /**
@@ -10,8 +10,6 @@ const aiState = {
   isOpen: false,
   isLoading: false,
   messages: [],
-  models: [],
-  selectedModel: "gemini-2.0-flash",
 };
 
 /**
@@ -30,7 +28,6 @@ function cacheElements() {
     messagesContainer: document.getElementById("ai-messages"),
     input: document.getElementById("ai-input"),
     sendBtn: document.getElementById("ai-send-btn"),
-    modelSelect: document.getElementById("ai-model-select"),
   };
 }
 
@@ -68,16 +65,6 @@ function createAIAssistantHTML() {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 6L6 18M6 6l12 12"/>
           </svg>
-        </button>
-      </div>
-      
-      <!-- 模型選擇器 -->
-      <div class="ai-model-selector">
-        <label for="ai-model-select">模型：</label>
-        <select id="ai-model-select" class="ai-model-select">
-          <option value="gemini-2.5-flash">Gemini 2.5 Flash (最新)</option>
-          <option value="gemini-2.0-flash">Gemini 2.0 Flash (穩定)</option>
-        </select>
       </div>
       
       <div id="ai-messages" class="ai-messages">
@@ -186,13 +173,12 @@ async function sendMessage() {
   aiElements.input.disabled = true;
 
   const typingIndicator = showTypingIndicator();
-  const selectedModel = aiElements.modelSelect?.value || aiState.selectedModel;
 
   try {
     const response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, model: selectedModel }),
+      body: JSON.stringify({ message }),
     });
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -238,13 +224,6 @@ function bindEvents() {
       togglePanel();
     }
   });
-
-  // 模型選擇變更
-  if (aiElements.modelSelect) {
-    aiElements.modelSelect.addEventListener("change", (e) => {
-      aiState.selectedModel = e.target.value;
-    });
-  }
 }
 
 /**
@@ -254,5 +233,5 @@ export function initAIAssistant() {
   createAIAssistantHTML();
   cacheElements();
   bindEvents();
-  console.log("AI Assistant initialized with model selection");
+  console.log("AI Assistant initialized (Gemini 2.5 Flash)");
 }
