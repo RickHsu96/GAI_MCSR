@@ -1,0 +1,168 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>MCSR Ranked Leaderboard</title>
+    <meta name="description" content="Live MCSR Ranked Elo leaderboard for the top 150 players, including season info and player roles." />
+    <link rel="preconnect" href="https://mcsrranked.com" crossorigin />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div>
+        <h1>MCSR Ranked Leaderboard</h1>
+        <p class="hero-subtitle">Top 150 players</p>
+      </div>
+      <div class="hero-actions">
+        <div class="leaderboard-toggle" role="group" aria-label="Leaderboard type">
+          <button class="leaderboard-toggle-btn active" data-leaderboard-type="elo">Elo</button>
+          <button class="leaderboard-toggle-btn" data-leaderboard-type="record">Record</button>
+        </div>
+        <p class="timestamp">
+          <span id="last-updated" class="sr-only">Not loaded</span>
+          <span id="sync-indicator" class="sync-indicator" data-state="idle" title="Last updated: Not loaded" aria-label="Last updated: Not loaded">
+            <span class="sync-dot"></span>
+          </span>
+        </p>
+      </div>
+    </header>
+
+    <main>
+      <section class="status-panel" aria-live="polite">
+        <div class="status" id="status-message">Loading latest data...</div>
+      </section>
+
+      <section class="stats-grid" aria-label="Leaderboard summary">
+        <article class="stat-card">
+          <p class="stat-label">Season</p>
+          <p class="stat-value" id="season-number">--</p>
+          <p class="stat-sub" id="season-range">--</p>
+        </article>
+        <article class="stat-card">
+          <p class="stat-label">Highest Elo</p>
+          <p class="stat-value" id="top-elo">--</p>
+          <p class="stat-sub" id="top-player">--</p>
+        </article>
+        <article class="stat-card">
+          <p class="stat-label">Average Elo</p>
+          <p class="stat-value" id="average-elo">--</p>
+          <p class="stat-sub">Top 150 Average</p>
+        </article>
+        <article class="stat-card">
+          <p class="stat-label">Countries</p>
+          <p class="stat-value" id="country-count">--</p>
+          <p class="stat-sub">Top 150 Countries / Regions</p>
+        </article>
+      </section>
+
+      <section class="table-header">
+        <div class="search-controls">
+          <div class="search-column">
+            <label class="search-box" for="search-input">
+              <span class="search-label">Search leaderboard</span>
+              <div class="search-bar">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <path d="M21 21l-4.35-4.35"></path>
+                </svg>
+                <input
+                  id="search-input"
+                  type="search"
+                  placeholder="Player ID"
+                  autocomplete="off"
+                />
+              </div>
+            </label>
+          </div>
+          <div class="search-column">
+            <label class="search-box" for="player-lookup-input">
+              <span class="search-label">Lookup any player</span>
+              <div class="search-bar">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <path d="M21 21l-4.35-4.35"></path>
+                </svg>
+                <input
+                  id="player-lookup-input"
+                  type="text"
+                  placeholder="Player ID"
+                  autocomplete="off"
+                />
+                <button id="lookup-btn" type="button">View</button>
+              </div>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="table-wrapper" aria-live="polite">
+        <table id="leaderboard-table">
+          <thead>
+            <tr>
+              <th scope="col">Rank</th>
+              <th scope="col">Player</th>
+              <th scope="col">Elo</th>
+              <th scope="col">Country / Region</th>
+              <th scope="col">Phase Points</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-body">
+            <tr>
+              <td colspan="5" class="placeholder">Loading data...</td>
+            </tr>
+          </tbody>
+        </table>
+        <div id="leaderboard-pagination" class="leaderboard-pagination" aria-label="Leaderboard pagination"></div>
+      </section>
+    </main>
+
+    <footer>
+      <p id="data-source"></p>
+    </footer>
+
+    <div id="player-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-overlay" id="modal-overlay"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modal-player-name">Loading...</h2>
+          <div class="modal-header-actions">
+            <button class="modal-expand" id="modal-expand" aria-label="Expand / Restore" title="Expand / Restore">
+              🔍
+            </button>
+            <button class="modal-compare" id="modal-compare" aria-label="Compare Player" title="Compare Player">
+              🔀
+            </button>
+            <button class="modal-screenshot" id="modal-screenshot" aria-label="Save Screenshot" title="Save Screenshot">
+              📸
+            </button>
+            <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+          </div>
+        </div>
+        <div class="modal-body" id="modal-body">
+          <div class="loading-spinner">Loading player details...</div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"
+            onload="window.html2canvasLoaded = true;"></script>
+
+    <script src="app.js" type="module"></script>
+  </body>
+</html>

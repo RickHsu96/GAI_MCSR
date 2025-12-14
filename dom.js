@@ -1,0 +1,26 @@
+// Cache all DOM elements in one place for clearer separation of concerns.
+export const statusMessage = document.getElementById("status-message");
+export const seasonNumber = document.getElementById("season-number");
+export const seasonRange = document.getElementById("season-range");
+export const topElo = document.getElementById("top-elo");
+export const topPlayer = document.getElementById("top-player");
+export const averageElo = document.getElementById("average-elo");
+export const countryCount = document.getElementById("country-count");
+export const heroTitle = document.querySelector("h1");
+export const heroSubtitle = document.querySelector(".hero-subtitle");
+export const leaderboardBody = document.getElementById("leaderboard-body");
+export const leaderboardPagination = document.getElementById("leaderboard-pagination");
+export const syncIndicator = document.getElementById("sync-indicator");
+export const leaderboardToggleButtons = document.querySelectorAll("[data-leaderboard-type]");
+export const refreshBtn = document.getElementById("refresh-btn");
+export const searchInput = document.getElementById("search-input");
+export const playerLookupInput = document.getElementById("player-lookup-input");
+export const lookupBtn = document.getElementById("lookup-btn");
+export const playerModal = document.getElementById("player-modal");
+export const modalOverlay = document.getElementById("modal-overlay");
+export const modalClose = document.getElementById("modal-close");
+export const modalScreenshot = document.getElementById("modal-screenshot");
+export const modalCompare = document.getElementById("modal-compare");
+export const modalExpand = document.getElementById("modal-expand");
+export const modalPlayerName = document.getElementById("modal-player-name");
+export const modalBody = document.getElementById("modal-body");
