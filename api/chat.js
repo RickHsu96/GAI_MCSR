@@ -1,7 +1,8 @@
 // Vercel Serverless Function for AI Chat
 // POST /api/chat
+// Using Google Gemini API (Free tier)
 
-const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 const MCSR_API_BASE = "https://mcsrranked.com/api";
 
 // System prompt that restricts AI to only analyze MCSR data
@@ -32,17 +33,14 @@ const SYSTEM_PROMPT = `你是 MCSR Ranked 資料分析專家。你的任務是�
 
 /**
  * Extract player name from user message
- * @param {string} message - User's message
- * @returns {string|null} Extracted player name or null
  */
 function extractPlayerName(message) {
-    // Common patterns for player name extraction
     const patterns = [
         /分析\s*[「「]?(\w+)[」」]?/,
         /(\w+)\s*的(?:數據|資料|統計|表現|戰績)/,
         /查(?:詢|看|找)\s*(\w+)/,
         /player\s*[:：]?\s*(\w+)/i,
-        /^(\w+)$/,  // If message is just a player name
+        /^(\w+)$/,
     ];
 
     for (const pattern of patterns) {
@@ -52,7 +50,6 @@ function extractPlayerName(message) {
         }
     }
 
-    // Try to find a word that looks like a Minecraft username (3-16 chars, alphanumeric + underscore)
     const words = message.split(/\s+/);
     for (const word of words) {
         if (/^[a-zA-Z0-9_]{3,16}$/.test(word)) {
@@ -65,8 +62,6 @@ function extractPlayerName(message) {
 
 /**
  * Fetch player profile from MCSR API
- * @param {string} nickname - Player nickname
- * @returns {Promise<object|null>} Player data or null if not found
  */
 async function fetchPlayerProfile(nickname) {
     try {
@@ -85,9 +80,6 @@ async function fetchPlayerProfile(nickname) {
 
 /**
  * Fetch player matches from MCSR API
- * @param {string} nickname - Player nickname
- * @param {number} count - Number of matches to fetch
- * @returns {Promise<array>} Array of matches
  */
 async function fetchPlayerMatches(nickname, count = 20) {
     try {
@@ -108,15 +100,11 @@ async function fetchPlayerMatches(nickname, count = 20) {
 
 /**
  * Format player data for AI context
- * @param {object} profile - Player profile data
- * @param {array} matches - Player matches
- * @returns {string} Formatted data string
  */
 function formatPlayerDataForAI(profile, matches) {
     if (!profile) return "無法取得玩家資料。";
 
     const stats = profile.statistics?.season || {};
-    const totalStats = profile.statistics?.total || {};
     const seasonResult = profile.seasonResult || {};
 
     let dataStr = `## 玩家資料：${profile.nickname}\n`;
@@ -164,7 +152,6 @@ function formatPlayerDataForAI(profile, matches) {
             const eloChange = match.eloChange || 0;
             const changeStr = eloChange >= 0 ? `+${eloChange}` : `${eloChange}`;
 
-            // Get opponent info
             const opponent = match.players?.find(p => p.uuid !== profile.uuid);
             const opponentName = opponent?.nickname || "未知";
 
@@ -178,57 +165,58 @@ function formatPlayerDataForAI(profile, matches) {
 }
 
 /**
- * Call OpenAI API
- * @param {string} userMessage - User's message
- * @param {string} context - Data context for AI
- * @returns {Promise<string>} AI response
+ * Call Google Gemini API
  */
-async function callOpenAI(userMessage, context) {
-    const apiKey = process.env.OPENAI_API_KEY;
+async function callGemini(userMessage, context) {
+    const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-        throw new Error("OPENAI_API_KEY is not configured");
+        throw new Error("GEMINI_API_KEY is not configured");
     }
 
-    const messages = [
-        { role: "system", content: SYSTEM_PROMPT },
-    ];
+    // Build the prompt
+    let fullPrompt = SYSTEM_PROMPT + "\n\n";
 
     if (context) {
-        messages.push({
-            role: "user",
-            content: `以下是 MCSR Ranked 的資料：\n\n${context}`,
-        });
-        messages.push({
-            role: "assistant",
-            content: "好的，我已經收到資料了。請問你想了解什麼？",
-        });
+        fullPrompt += `以下是 MCSR Ranked 的資料：\n\n${context}\n\n`;
     }
 
-    messages.push({ role: "user", content: userMessage });
+    fullPrompt += `使用者問題：${userMessage}`;
 
-    const response = await fetch(OPENAI_API_URL, {
+    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-            model: "gpt-4o-mini",
-            messages,
-            temperature: 0.7,
-            max_tokens: 800,
+            contents: [
+                {
+                    parts: [
+                        { text: fullPrompt }
+                    ]
+                }
+            ],
+            generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 800,
+            },
         }),
     });
 
     if (!response.ok) {
         const error = await response.text();
-        console.error("OpenAI API error:", error);
-        throw new Error(`OpenAI API error: ${response.status}`);
+        console.error("Gemini API error:", error);
+        throw new Error(`Gemini API error: ${response.status}`);
     }
 
     const data = await response.json();
-    return data.choices?.[0]?.message?.content || "抱歉，我無法生成回應。";
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!reply) {
+        throw new Error("No response from Gemini");
+    }
+
+    return reply;
 }
 
 /**
@@ -280,8 +268,8 @@ export default async function handler(req, res) {
             }
         }
 
-        // Call OpenAI
-        const reply = await callOpenAI(message, context);
+        // Call Gemini
+        const reply = await callGemini(message, context);
 
         return res.status(200).json({
             reply,
@@ -293,10 +281,10 @@ export default async function handler(req, res) {
         console.error("API Error:", error);
 
         // Handle specific errors
-        if (error.message.includes("OPENAI_API_KEY")) {
+        if (error.message.includes("GEMINI_API_KEY")) {
             return res.status(500).json({
                 error: "AI 服務尚未設定，請稍後再試。",
-                reply: "⚠️ AI 服務尚可能還沒成功設定（需要設定環境變數） <br><small>（開發中：請確認 Vercel 環境變數已設定 OPENAI_API_KEY）</small>",
+                reply: "⚠️ AI 服務尚未設定（需要設定 GEMINI_API_KEY 環境變數）",
             });
         }
 
