@@ -1,14 +1,17 @@
 // ============================================================================
 // AI Assistant Module - MCSR Ranked 資料分析助手
+// 支援多模型選擇
 // ============================================================================
 
 /**
  * AI 助手狀態
  */
 const aiState = {
-    isOpen: false,
-    isLoading: false,
-    messages: [],
+  isOpen: false,
+  isLoading: false,
+  messages: [],
+  models: [],
+  selectedModel: "gemini-2.0-flash",
 };
 
 /**
@@ -20,23 +23,24 @@ let aiElements = null;
  * 初始化 DOM 元素快取
  */
 function cacheElements() {
-    aiElements = {
-        fab: document.getElementById("ai-fab"),
-        panel: document.getElementById("ai-panel"),
-        closeBtn: document.getElementById("ai-close-btn"),
-        messagesContainer: document.getElementById("ai-messages"),
-        input: document.getElementById("ai-input"),
-        sendBtn: document.getElementById("ai-send-btn"),
-    };
+  aiElements = {
+    fab: document.getElementById("ai-fab"),
+    panel: document.getElementById("ai-panel"),
+    closeBtn: document.getElementById("ai-close-btn"),
+    messagesContainer: document.getElementById("ai-messages"),
+    input: document.getElementById("ai-input"),
+    sendBtn: document.getElementById("ai-send-btn"),
+    modelSelect: document.getElementById("ai-model-select"),
+  };
 }
 
 /**
  * 建立 AI 助手的 HTML 結構
  */
 function createAIAssistantHTML() {
-    const container = document.createElement("div");
-    container.id = "ai-assistant-container";
-    container.innerHTML = `
+  const container = document.createElement("div");
+  container.id = "ai-assistant-container";
+  container.innerHTML = `
     <!-- 懸浮按鈕 -->
     <button id="ai-fab" class="ai-fab" aria-label="開啟 AI 分析助手" title="AI 分析助手">
       <svg class="ai-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -65,6 +69,17 @@ function createAIAssistantHTML() {
             <path d="M18 6L6 18M6 6l12 12"/>
           </svg>
         </button>
+      </div>
+      
+      <!-- 模型選擇器 -->
+      <div class="ai-model-selector">
+        <label for="ai-model-select">模型：</label>
+        <select id="ai-model-select" class="ai-model-select">
+          <option value="gemini-2.0-flash">Gemini 2.0 Flash (快速)</option>
+          <option value="gemini-1.5-pro">Gemini 1.5 Pro (高品質)</option>
+          <option value="gemini-1.5-flash">Gemini 1.5 Flash (平衡)</option>
+          <option value="gemini-1.0-pro">Gemini 1.0 Pro (穩定)</option>
+        </select>
       </div>
       
       <div id="ai-messages" class="ai-messages">
@@ -100,55 +115,52 @@ function createAIAssistantHTML() {
     </div>
   `;
 
-    document.body.appendChild(container);
+  document.body.appendChild(container);
 }
 
 /**
  * 切換對話視窗開關
  */
 function togglePanel() {
-    aiState.isOpen = !aiState.isOpen;
+  aiState.isOpen = !aiState.isOpen;
 
-    if (aiState.isOpen) {
-        aiElements.panel.classList.add("open");
-        aiElements.panel.setAttribute("aria-hidden", "false");
-        aiElements.fab.classList.add("active");
-        // 自動聚焦輸入框
-        setTimeout(() => aiElements.input.focus(), 300);
-    } else {
-        aiElements.panel.classList.remove("open");
-        aiElements.panel.setAttribute("aria-hidden", "true");
-        aiElements.fab.classList.remove("active");
-    }
+  if (aiState.isOpen) {
+    aiElements.panel.classList.add("open");
+    aiElements.panel.setAttribute("aria-hidden", "false");
+    aiElements.fab.classList.add("active");
+    setTimeout(() => aiElements.input.focus(), 300);
+  } else {
+    aiElements.panel.classList.remove("open");
+    aiElements.panel.setAttribute("aria-hidden", "true");
+    aiElements.fab.classList.remove("active");
+  }
 }
 
 /**
  * 新增訊息到對話視窗
- * @param {string} content - 訊息內容
- * @param {'user' | 'assistant'} role - 訊息角色
  */
-function addMessage(content, role) {
-    const messageDiv = document.createElement("div");
-    messageDiv.className = `ai-message ai-message-${role}`;
-    messageDiv.innerHTML = `<div class="ai-message-content">${content}</div>`;
+function addMessage(content, role, modelInfo = null) {
+  const messageDiv = document.createElement("div");
+  messageDiv.className = `ai-message ai-message-${role}`;
 
-    aiElements.messagesContainer.appendChild(messageDiv);
+  let html = `<div class="ai-message-content">${content}</div>`;
+  if (modelInfo && role === "assistant") {
+    html += `<div class="ai-model-badge">${modelInfo}</div>`;
+  }
+  messageDiv.innerHTML = html;
 
-    // 滾動到底部
-    aiElements.messagesContainer.scrollTop = aiElements.messagesContainer.scrollHeight;
-
-    // 儲存到歷史
-    aiState.messages.push({ role, content });
+  aiElements.messagesContainer.appendChild(messageDiv);
+  aiElements.messagesContainer.scrollTop = aiElements.messagesContainer.scrollHeight;
+  aiState.messages.push({ role, content });
 }
 
 /**
  * 顯示載入動畫
- * @returns {HTMLElement} 載入動畫元素（用於後續移除）
  */
 function showTypingIndicator() {
-    const typingDiv = document.createElement("div");
-    typingDiv.className = "ai-message ai-message-assistant ai-typing";
-    typingDiv.innerHTML = `
+  const typingDiv = document.createElement("div");
+  typingDiv.className = "ai-message ai-message-assistant ai-typing";
+  typingDiv.innerHTML = `
     <div class="ai-message-content">
       <span class="ai-typing-dot"></span>
       <span class="ai-typing-dot"></span>
@@ -156,116 +168,93 @@ function showTypingIndicator() {
     </div>
   `;
 
-    aiElements.messagesContainer.appendChild(typingDiv);
-    aiElements.messagesContainer.scrollTop = aiElements.messagesContainer.scrollHeight;
-
-    return typingDiv;
+  aiElements.messagesContainer.appendChild(typingDiv);
+  aiElements.messagesContainer.scrollTop = aiElements.messagesContainer.scrollHeight;
+  return typingDiv;
 }
 
 /**
  * 送出訊息
  */
 async function sendMessage() {
-    const message = aiElements.input.value.trim();
-    if (!message || aiState.isLoading) return;
+  const message = aiElements.input.value.trim();
+  if (!message || aiState.isLoading) return;
 
-    // 清空輸入框
-    aiElements.input.value = "";
+  aiElements.input.value = "";
+  addMessage(message, "user");
 
-    // 顯示使用者訊息
-    addMessage(message, "user");
+  aiState.isLoading = true;
+  aiElements.sendBtn.disabled = true;
+  aiElements.input.disabled = true;
 
-    // 設定載入狀態
-    aiState.isLoading = true;
-    aiElements.sendBtn.disabled = true;
-    aiElements.input.disabled = true;
+  const typingIndicator = showTypingIndicator();
+  const selectedModel = aiElements.modelSelect?.value || aiState.selectedModel;
 
-    // 顯示打字動畫
-    const typingIndicator = showTypingIndicator();
+  try {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, model: selectedModel }),
+    });
 
-    try {
-        // 呼叫 API
-        const response = await fetch("/api/chat", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ message }),
-        });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
+    const data = await response.json();
+    typingIndicator.remove();
 
-        const data = await response.json();
+    const modelBadge = data.modelUsed || selectedModel;
+    addMessage(data.reply || "抱歉，我無法處理這個請求。", "assistant", modelBadge);
 
-        // 移除打字動畫
-        typingIndicator.remove();
-
-        // 顯示 AI 回應
-        addMessage(data.reply || "抱歉，我無法處理這個請求。", "assistant");
-
-    } catch (error) {
-        console.error("AI Assistant Error:", error);
-
-        // 移除打字動畫
-        typingIndicator.remove();
-
-        // 顯示錯誤訊息
-        addMessage(
-            "⚠️ 抱歉，發生了錯誤。請稍後再試。<br><small>（提示：請確認 API 已正確設定）</small>",
-            "assistant"
-        );
-    } finally {
-        // 重置載入狀態
-        aiState.isLoading = false;
-        aiElements.sendBtn.disabled = false;
-        aiElements.input.disabled = false;
-        aiElements.input.focus();
-    }
+  } catch (error) {
+    console.error("AI Assistant Error:", error);
+    typingIndicator.remove();
+    addMessage(
+      "⚠️ 抱歉，發生了錯誤。請稍後再試。<br><small>（提示：請確認 API 已正確設定）</small>",
+      "assistant"
+    );
+  } finally {
+    aiState.isLoading = false;
+    aiElements.sendBtn.disabled = false;
+    aiElements.input.disabled = false;
+    aiElements.input.focus();
+  }
 }
 
 /**
  * 綁定事件監聽器
  */
 function bindEvents() {
-    // 懸浮按鈕點擊
-    aiElements.fab.addEventListener("click", togglePanel);
+  aiElements.fab.addEventListener("click", togglePanel);
+  aiElements.closeBtn.addEventListener("click", togglePanel);
+  aiElements.sendBtn.addEventListener("click", sendMessage);
 
-    // 關閉按鈕點擊
-    aiElements.closeBtn.addEventListener("click", togglePanel);
+  aiElements.input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
 
-    // 送出按鈕點擊
-    aiElements.sendBtn.addEventListener("click", sendMessage);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && aiState.isOpen) {
+      togglePanel();
+    }
+  });
 
-    // 輸入框 Enter 鍵
-    aiElements.input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
+  // 模型選擇變更
+  if (aiElements.modelSelect) {
+    aiElements.modelSelect.addEventListener("change", (e) => {
+      aiState.selectedModel = e.target.value;
     });
-
-    // ESC 鍵關閉
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && aiState.isOpen) {
-            togglePanel();
-        }
-    });
+  }
 }
 
 /**
  * 初始化 AI 助手
  */
 export function initAIAssistant() {
-    // 建立 HTML
-    createAIAssistantHTML();
-
-    // 快取 DOM 元素
-    cacheElements();
-
-    // 綁定事件
-    bindEvents();
-
-    console.log("AI Assistant initialized");
+  createAIAssistantHTML();
+  cacheElements();
+  bindEvents();
+  console.log("AI Assistant initialized with model selection");
 }
